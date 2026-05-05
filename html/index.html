@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Service Tasks</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <main id="app" class="app hidden">
+        <section class="hud-shell enter">
+            <section class="mission-card" aria-live="polite">
+                <div class="card-cut card-cut-a"></div>
+                <div class="card-cut card-cut-b"></div>
+
+                <header class="card-header">
+                    <span id="jobTag" class="job-tag">SERVICE</span>
+                    <span class="issuer-prefix">ASIGNADO POR</span>
+                    <h2 id="missionIssuer" class="issuer">Central</h2>
+                </header>
+
+                <div class="divider"></div>
+
+                <section class="briefing-wrap">
+                    <h1 id="missionTitle" class="mission-title">Mision</h1>
+                    <p id="missionBriefing" class="mission-briefing"></p>
+                </section>
+
+                <section class="meta">
+                    <div class="meta-item">
+                        <span class="meta-label">DIFICULTAD</span>
+                        <span id="missionDifficulty" class="meta-value">NORMAL</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">RECOMPENSA</span>
+                        <span id="missionReward" class="meta-value">$120 - $250 (EFECTIVO)</span>
+                    </div>
+                </section>
+
+                <footer class="actions">
+                    <button id="acceptBtn" class="btn btn-accept" type="button">Iniciar</button>
+                    <button id="rejectBtn" class="btn btn-reject" type="button">Cancelar</button>
+                </footer>
+            </section>
+
+            <aside class="team-card">
+                <div class="team-head">
+                    <h3 class="team-title">Equipo</h3>
+                    <span id="teamCapacity" class="team-capacity">1/4</span>
+                </div>
+
+                <section class="team-block">
+                    <span class="team-label">Miembros</span>
+                    <ul id="teamMembers" class="list"></ul>
+                </section>
+
+                <section class="team-block">
+                    <span class="team-label">Cercanos (mismo job)</span>
+                    <ul id="nearbyPlayers" class="list list-near"></ul>
+                </section>
+            </aside>
+        </section>
+    </main>
+
+    <section id="invitePopup" class="invite-popup hidden">
+        <div class="invite-shape"></div>
+        <span class="invite-top">INVITACION DE EQUIPO</span>
+        <h4 id="inviteLeader" class="invite-leader">Lider</h4>
+        <p id="inviteMission" class="invite-mission">Mision</p>
+        <div class="invite-actions">
+            <button id="inviteAccept" class="btn btn-accept" type="button">Aceptar</button>
+            <button id="inviteDecline" class="btn btn-reject" type="button">Rechazar</button>
+        </div>
+    </section>
+
+    <script src="script.js"></script>
+</body>
+</html>
