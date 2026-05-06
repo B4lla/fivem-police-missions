@@ -201,8 +201,12 @@ MissionCore.RegisterRunner('ems_supply_delivery', function()
     local carried = MissionCore.AttachPropToPlayer(
         `prop_box_wood05a`,
         60309,
-        vector3(0.12, 0.0, -0.04),
-        vector3(250.0, 280.0, 80.0)
+        vector3(0.03, 0.06, -0.19),
+        vector3(15.0, 285.0, 180.0),
+        {
+            carry = true,
+            disableCollision = true
+        }
     )
 
     if not carried then

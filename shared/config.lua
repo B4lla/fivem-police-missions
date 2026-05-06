@@ -1,6 +1,6 @@
 Config = Config or {}
 
-Config.Debug = false
+Config.Debug = true
 Config.PoliceJob = 'police'
 Config.EmsJob = 'ambulance'
 Config.CooldownSeconds = 120
@@ -8,6 +8,7 @@ Config.MinimumMissionDuration = 35
 Config.MissionTimeoutSeconds = 900
 Config.InteractionKey = 38
 Config.InteractionDistance = 1.8
+Config.DrawTextDistance = 18.0
 
 Config.Team = {
     MaxMembers = 4,

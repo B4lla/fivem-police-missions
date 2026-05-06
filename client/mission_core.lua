@@ -8,6 +8,9 @@ MissionCore.FailReason = nil
 MissionCore.ManagedEntities = {}
 MissionCore.ManagedBlips = {}
 MissionCore.AttachedProp = nil
+MissionCore.CarryAnim = nil
+MissionCore.MarkerDisabled = false
+MissionCore.TimerLastRemaining = nil
 MissionCore.TeamData = nil
 MissionCore.IsLeader = true
 MissionCore.SupportBlip = nil
@@ -19,6 +22,12 @@ local function debugLog(message)
 end
 
 local function drawFloatingText(coords, text)
+    local maxDistance = Config.DrawTextDistance or 18.0
+    local playerCoords = GetEntityCoords(PlayerPedId())
+    if #(playerCoords - coords) > maxDistance then
+        return
+    end
+
     local onScreen, screenX, screenY = World3dToScreen2d(coords.x, coords.y, coords.z)
     if not onScreen then
         return
@@ -37,20 +46,76 @@ local function drawFloatingText(coords, text)
     DrawRect(screenX, screenY + 0.0125, backgroundWidth, 0.028, 15, 15, 15, 120)
 end
 
-local function drawMissionTimer()
+local function safeDrawMarker(markerType, x, y, z, dirX, dirY, dirZ, rotX, rotY, rotZ, scaleX, scaleY, scaleZ, r, g, b, a, bobUpAndDown, faceCamera, p19, rotate, textureDict, textureName, drawOnEnts)
+    if MissionCore.MarkerDisabled then
+        return
+    end
+
+    local ok, err = pcall(function()
+        DrawMarker(
+            markerType,
+            x,
+            y,
+            z,
+            dirX,
+            dirY,
+            dirZ,
+            rotX,
+            rotY,
+            rotZ,
+            scaleX,
+            scaleY,
+            scaleZ,
+            r,
+            g,
+            b,
+            a,
+            bobUpAndDown,
+            faceCamera,
+            p19,
+            rotate,
+            textureDict,
+            textureName,
+            drawOnEnts
+        )
+    end)
+
+    if not ok then
+        MissionCore.MarkerDisabled = true
+        debugLog(('DrawMarker disabled after native error: %s'):format(tostring(err)))
+    end
+end
+
+local function drawMissionTimer(force)
     if not MissionCore.ActiveMission then
+        if force then
+            SendNUIMessage({
+                action = 'missionTimer',
+                payload = {
+                    show = false
+                }
+            })
+        end
+
+        MissionCore.TimerLastRemaining = nil
         return
     end
 
     local elapsed = math.floor((GetGameTimer() - MissionCore.ActiveMission.startedAt) / 1000)
     local remaining = math.max(0, Config.MissionTimeoutSeconds - elapsed)
 
-    SetTextFont(4)
-    SetTextScale(0.35, 0.35)
-    SetTextColour(255, 255, 255, 220)
-    SetTextEntry('STRING')
-    AddTextComponentString(('Tiempo restante: %ss'):format(remaining))
-    DrawText(0.82, 0.04)
+    if not force and MissionCore.TimerLastRemaining == remaining then
+        return
+    end
+
+    MissionCore.TimerLastRemaining = remaining
+    SendNUIMessage({
+        action = 'missionTimer',
+        payload = {
+            show = true,
+            remaining = remaining
+        }
+    })
 end
 
 local function showHelpText(message)
@@ -194,7 +259,6 @@ end
 
 function MissionCore.GoToPoint(coords, label, radius, markerColor)
     local target = vector3(coords.x, coords.y, coords.z)
-    announceCheckpoint(target)
     local blip = MissionCore.CreateRouteBlip(target, 280, markerColor or 3, label)
 
     while true do
@@ -206,10 +270,12 @@ function MissionCore.GoToPoint(coords, label, radius, markerColor)
         local distance = #(playerCoords - target)
 
         if distance < (radius or 3.0) then
+            -- Count checkpoint participation when the player actually reaches the target.
+            announceCheckpoint(target)
             break
         end
 
-        DrawMarker(
+        safeDrawMarker(
             2,
             target.x,
             target.y,
@@ -276,7 +342,6 @@ end
 
 function MissionCore.WaitForKeyPressAt(coords, radius, prompt)
     local target = vector3(coords.x, coords.y, coords.z)
-    announceCheckpoint(target)
 
     while true do
         if MissionCore.CancelRequested or isTimedOut() then
@@ -288,7 +353,7 @@ function MissionCore.WaitForKeyPressAt(coords, radius, prompt)
 
         if distance <= radius then
             showHelpText(prompt)
-            DrawMarker(
+            safeDrawMarker(
                 2,
                 target.x,
                 target.y,
@@ -316,6 +381,8 @@ function MissionCore.WaitForKeyPressAt(coords, radius, prompt)
             )
 
             if IsControlJustPressed(0, Config.InteractionKey) then
+                -- Count checkpoint participation on successful interaction at the target.
+                announceCheckpoint(target)
                 return true
             end
         end
@@ -382,27 +449,36 @@ function MissionCore.SpawnMissionProp(model, coords, heading, freeze)
     return trackEntity(prop)
 end
 
-function MissionCore.AttachPropToPlayer(model, bone, offset, rotation)
+function MissionCore.AttachPropToPlayer(model, bone, offset, rotation, options)
     local ped = PlayerPedId()
+    options = options or {}
 
     if not requestModel(model) then
         return nil
     end
 
+    local attachBone = bone or 60309
+    local attachOffset = offset or vector3(0.03, 0.06, -0.19)
+    local attachRotation = rotation or vector3(15.0, 285.0, 180.0)
+
     local coords = GetEntityCoords(ped)
     local prop = CreateObject(model, coords.x, coords.y, coords.z, true, true, false)
     SetEntityAsMissionEntity(prop, true, true)
 
+    if options.disableCollision ~= false then
+        SetEntityCollision(prop, false, false)
+    end
+
     AttachEntityToEntity(
         prop,
         ped,
-        GetPedBoneIndex(ped, bone or 60309),
-        offset.x,
-        offset.y,
-        offset.z,
-        rotation.x,
-        rotation.y,
-        rotation.z,
+        GetPedBoneIndex(ped, attachBone),
+        attachOffset.x,
+        attachOffset.y,
+        attachOffset.z,
+        attachRotation.x,
+        attachRotation.y,
+        attachRotation.z,
         true,
         true,
         false,
@@ -413,16 +489,53 @@ function MissionCore.AttachPropToPlayer(model, bone, offset, rotation)
 
     SetModelAsNoLongerNeeded(model)
     MissionCore.AttachedProp = trackEntity(prop)
+
+    local shouldCarry = options.carry ~= false
+    if shouldCarry then
+        local animDict = options.animDict or 'anim@heists@box_carry@'
+        local animName = options.animName or 'idle'
+
+        MissionCore.CarryAnim = {
+            dict = animDict,
+            name = animName
+        }
+
+        requestAnimDict(animDict)
+        TaskPlayAnim(ped, animDict, animName, 4.0, -4.0, -1, 49, 0.0, false, false, false)
+
+        local attachedProp = MissionCore.AttachedProp
+        CreateThread(function()
+            while MissionCore.AttachedProp == attachedProp and DoesEntityExist(attachedProp) do
+                local currentPed = PlayerPedId()
+                if not IsPedInAnyVehicle(currentPed, false) and not IsEntityPlayingAnim(currentPed, animDict, animName, 3) then
+                    TaskPlayAnim(currentPed, animDict, animName, 4.0, -4.0, -1, 49, 0.0, false, false, false)
+                end
+
+                Wait(800)
+            end
+        end)
+    else
+        MissionCore.CarryAnim = nil
+    end
+
     return MissionCore.AttachedProp
 end
 
 function MissionCore.DropAttachedProp()
+    local ped = PlayerPedId()
+
     if MissionCore.AttachedProp and DoesEntityExist(MissionCore.AttachedProp) then
         DetachEntity(MissionCore.AttachedProp, true, true)
         DeleteEntity(MissionCore.AttachedProp)
     end
 
     MissionCore.AttachedProp = nil
+
+    if MissionCore.CarryAnim then
+        StopAnimTask(ped, MissionCore.CarryAnim.dict, MissionCore.CarryAnim.name, 0.2)
+        ClearPedSecondaryTask(ped)
+        MissionCore.CarryAnim = nil
+    end
 end
 
 function MissionCore.WaitForVehicleSeat(vehicle, seat)
@@ -503,6 +616,7 @@ end
 
 function MissionCore.Cleanup(keepState)
     MissionCore.DropAttachedProp()
+    drawMissionTimer(true)
 
     for _, blip in ipairs(MissionCore.ManagedBlips) do
         if blip and DoesBlipExist(blip) then
@@ -528,6 +642,7 @@ function MissionCore.Cleanup(keepState)
         MissionCore.ActiveMission = nil
         MissionCore.CancelRequested = false
         MissionCore.FailReason = nil
+        MissionCore.TimerLastRemaining = nil
         MissionCore.TeamData = nil
         MissionCore.IsLeader = true
     end
@@ -558,12 +673,17 @@ function MissionCore.StartMission(mission, jobName, teamData, isLeader)
 
     MissionCore.Notify(Lang:t('success.mission_started'), 'success')
     MissionCore.Notify(Lang:t('info.cancel_tip'), 'primary', 4500)
+    drawMissionTimer(true)
 
     if teamData and teamData.count and teamData.count > 1 then
         MissionCore.Notify(Lang:t('success.team_started', { count = teamData.count }), 'success', 4000)
     end
 
     CreateThread(function()
+       Wait(500)
+
+        if Config.Debug then debugLog('Starting mission runner after delay') end
+
         local ok, result = pcall(function()
             return runner(MissionCore.ActiveMission)
         end)
@@ -611,12 +731,14 @@ function MissionCore.StartSupportMission(mission, jobName, teamData)
     MissionCore.Notify(Lang:t('success.mission_started'), 'success')
     MissionCore.Notify('Modo apoyo activo: mantente cerca del equipo para recibir pago.', 'primary', 5000)
     MissionCore.Notify(Lang:t('info.cancel_tip'), 'primary', 4500)
+    drawMissionTimer(true)
 
     if teamData and teamData.count and teamData.count > 1 then
         MissionCore.Notify(Lang:t('success.team_started', { count = teamData.count }), 'success', 4000)
     end
 
     CreateThread(function()
+        Wait(500)
         while MissionCore.ActiveMission and not MissionCore.CancelRequested do
             if isTimedOut() then
                 MissionCore.FailReason = 'timeout'

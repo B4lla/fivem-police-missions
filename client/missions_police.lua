@@ -47,39 +47,53 @@ end)
 
 MissionCore.RegisterRunner('police_traffic_control', function()
     local anchor = Config.PoliceTrafficConePoints[1]
-
+    if Config.Debug then print('[qb-servicejobs] police_traffic_control: goto anchor') end
     local ok = MissionCore.GoToPoint(anchor, 'Acude al cruce asignado', 4.0, 26)
+    if Config.Debug then print('[qb-servicejobs] police_traffic_control: goto anchor done ok=', tostring(ok)) end
     if not ok then
         return false
     end
 
     for index, conePoint in ipairs(Config.PoliceTrafficConePoints) do
+        if Config.Debug then print(('[qb-servicejobs] police_traffic_control: waiting for key for cone %s'):format(index)) end
         ok = MissionCore.WaitForKeyPressAt(conePoint, 1.9, ('Pulsa ~INPUT_CONTEXT~ para colocar cono %s/3'):format(index))
+        if Config.Debug then print('[qb-servicejobs] police_traffic_control: WaitForKeyPressAt done ok=', tostring(ok)) end
         if not ok then
             return false
         end
 
         MissionCore.AlignPlayerToHeading(conePoint.w or GetEntityHeading(PlayerPedId()))
+        if Config.Debug then print('[qb-servicejobs] police_traffic_control: doing timed action for cone') end
         ok = MissionCore.DoTimedAction('Asegurando carril...', 2400, 'mini@repair', 'fixing_a_ped', nil)
+        if Config.Debug then print('[qb-servicejobs] police_traffic_control: DoTimedAction done ok=', tostring(ok)) end
         if not ok then
             return false
         end
 
-        MissionCore.SpawnMissionProp(`prop_roadcone02a`, vector3(conePoint.x, conePoint.y, conePoint.z - 1.0), conePoint.w or 0.0, true)
+        if Config.Debug then print('[qb-servicejobs] police_traffic_control: spawning cone prop') end
+        local cone = MissionCore.SpawnMissionProp(`prop_roadcone02a`, vector3(conePoint.x, conePoint.y, conePoint.z - 1.0), conePoint.w or 0.0, true)
+        if Config.Debug then print('[qb-servicejobs] police_traffic_control: spawned cone=', tostring(cone)) end
     end
 
+    if Config.Debug then print('[qb-servicejobs] police_traffic_control: spawn witness ped') end
     local witness = MissionCore.SpawnMissionPed(`a_m_m_business_01`, vector3(401.75, -1047.58, 29.35), 91.0, 'WORLD_HUMAN_STAND_IMPATIENT')
-    if not witness then
+    if Config.Debug then print('[qb-servicejobs] police_traffic_control: spawn witness done witness=', tostring(witness)) end
+    if not witness or not DoesEntityExist(witness) then
+        if Config.Debug then print('[qb-servicejobs] police_traffic_control: witness invalid, abort') end
         return false
     end
 
+    if Config.Debug then print('[qb-servicejobs] police_traffic_control: interact with witness') end
     ok = MissionCore.InteractWithPed(witness, 'Pulsa ~INPUT_CONTEXT~ para pedir evaluacion de trafico', 2.0)
+    if Config.Debug then print('[qb-servicejobs] police_traffic_control: InteractWithPed done ok=', tostring(ok)) end
     if not ok then
         return false
     end
 
     MissionCore.AlignPlayerToEntity(witness)
+    if Config.Debug then print('[qb-servicejobs] police_traffic_control: doTimedAction traffic eval') end
     ok = MissionCore.DoTimedAction('Dirigiendo trafico y evaluando flujo...', 9500, nil, nil, 'WORLD_HUMAN_CAR_PARK_ATTENDANT')
+    if Config.Debug then print('[qb-servicejobs] police_traffic_control: doTimedAction traffic eval done ok=', tostring(ok)) end
     if not ok then
         return false
     end
@@ -89,19 +103,27 @@ end)
 
 MissionCore.RegisterRunner('police_vehicle_inspection', function()
     local zone = vector4(486.98, -1024.28, 28.12, 270.0)
+    if Config.Debug then print('[qb-servicejobs] police_vehicle_inspection: goto zone') end
     local ok = MissionCore.GoToPoint(zone, 'Dirigete al vehiculo reportado', 4.0, 38)
+    if Config.Debug then print('[qb-servicejobs] police_vehicle_inspection: goto zone done ok=', tostring(ok)) end
     if not ok then
         return false
     end
 
+    if Config.Debug then print('[qb-servicejobs] police_vehicle_inspection: spawn vehicle') end
     local vehicle = MissionCore.SpawnMissionVehicle(`blista`, vector3(zone.x, zone.y, zone.z), zone.w)
+    if Config.Debug then print('[qb-servicejobs] police_vehicle_inspection: spawn vehicle done vehicle=', tostring(vehicle)) end
     if not vehicle then
         return false
     end
 
+    if Config.Debug then print('[qb-servicejobs] police_vehicle_inspection: calc driver spot') end
     local driverSpot = GetOffsetFromEntityInWorldCoords(vehicle, -2.0, 0.6, 0.0)
+    if Config.Debug then print('[qb-servicejobs] police_vehicle_inspection: driverSpot=', tostring(driverSpot)) end
     local driverHeading = (zone.w + 90.0) % 360.0
+    if Config.Debug then print('[qb-servicejobs] police_vehicle_inspection: spawn driver ped') end
     local driver = MissionCore.SpawnMissionPed(`a_m_m_soucent_01`, vector3(driverSpot.x, driverSpot.y, driverSpot.z), driverHeading, nil)
+    if Config.Debug then print('[qb-servicejobs] police_vehicle_inspection: spawn driver done driver=', tostring(driver)) end
     if not driver then
         return false
     end
@@ -109,62 +131,67 @@ MissionCore.RegisterRunner('police_vehicle_inspection', function()
     SetEntityHeading(driver, driverHeading)
     FreezeEntityPosition(driver, true)
 
+    if Config.Debug then print('[qb-servicejobs] police_vehicle_inspection: interact with ped') end
     ok = MissionCore.InteractWithPed(driver, 'Pulsa ~INPUT_CONTEXT~ para iniciar entrevista vehicular', 2.0)
+    if Config.Debug then print('[qb-servicejobs] police_vehicle_inspection: interactWithPed done ok=', tostring(ok)) end
     if not ok then
         return false
     end
 
     MissionCore.AlignPlayerToEntity(driver)
+    if Config.Debug then print('[qb-servicejobs] police_vehicle_inspection: verifying docs') end
     ok = MissionCore.DoTimedAction('Verificando documentacion...', 5500, 'amb@world_human_clipboard@male@base', 'base', nil)
+    if Config.Debug then print('[qb-servicejobs] police_vehicle_inspection: verifying docs done ok=', tostring(ok)) end
     if not ok then
         return false
     end
 
+    if Config.Debug then print('[qb-servicejobs] police_vehicle_inspection: open vehicle door hood') end
     SetVehicleDoorOpen(vehicle, 4, false, false)
     local hoodPoint = GetOffsetFromEntityInWorldCoords(vehicle, 0.0, 2.0, 0.0)
+    if Config.Debug then print('[qb-servicejobs] police_vehicle_inspection: go to hood point') end
     ok = MissionCore.GoToPoint(hoodPoint, 'Inspecciona el compartimento frontal', 1.8, 38)
+    if Config.Debug then print('[qb-servicejobs] police_vehicle_inspection: go to hood point done ok=', tostring(ok)) end
     if not ok then
         return false
     end
 
     MissionCore.AlignPlayerToEntity(vehicle)
+    if Config.Debug then print('[qb-servicejobs] police_vehicle_inspection: doTimedAction front') end
     ok = MissionCore.DoTimedAction('Inspeccion mecanica frontal...', 6200, 'mini@repair', 'fixing_a_player', nil)
+    if Config.Debug then print('[qb-servicejobs] police_vehicle_inspection: doTimedAction front done ok=', tostring(ok)) end
     if not ok then
         return false
     end
 
+    if Config.Debug then print('[qb-servicejobs] police_vehicle_inspection: closing hood, opening trunk') end
     SetVehicleDoorShut(vehicle, 4, false)
     SetVehicleDoorOpen(vehicle, 5, false, false)
     local trunkPoint = GetOffsetFromEntityInWorldCoords(vehicle, 0.0, -2.0, 0.0)
+    if Config.Debug then print('[qb-servicejobs] police_vehicle_inspection: go to trunk point') end
     ok = MissionCore.GoToPoint(trunkPoint, 'Inspecciona zona trasera', 1.8, 38)
+    if Config.Debug then print('[qb-servicejobs] police_vehicle_inspection: go to trunk point done ok=', tostring(ok)) end
     if not ok then
         return false
     end
 
     MissionCore.AlignPlayerToEntity(vehicle)
+    if Config.Debug then print('[qb-servicejobs] police_vehicle_inspection: doTimedAction trunk') end
     ok = MissionCore.DoTimedAction('Revisando maletero...', 5600, 'mini@repair', 'fixing_a_ped', nil)
+    if Config.Debug then print('[qb-servicejobs] police_vehicle_inspection: doTimedAction trunk done ok=', tostring(ok)) end
     if not ok then
         return false
     end
 
+    if Config.Debug then print('[qb-servicejobs] police_vehicle_inspection: closing trunk') end
     SetVehicleDoorShut(vehicle, 5, false)
     return true
 end)
 
 MissionCore.RegisterRunner('police_hotzone_patrol', function()
-    local vehicleSpawn = vector4(455.95, -1017.57, 28.45, 88.2)
+    local patrolStart = Config.PolicePatrolRoute[1] or vector3(441.4, -981.8, 30.7)
 
-    local ok = MissionCore.GoToPoint(vehicleSpawn, 'Recoge la unidad de patrulla', 5.0, 29)
-    if not ok then
-        return false
-    end
-
-    local patrolVehicle = MissionCore.SpawnMissionVehicle(`police`, vector3(vehicleSpawn.x, vehicleSpawn.y, vehicleSpawn.z), vehicleSpawn.w)
-    if not patrolVehicle then
-        return false
-    end
-
-    ok = MissionCore.WaitForVehicleSeat(patrolVehicle, -1)
+    local ok = MissionCore.GoToPoint(patrolStart, 'Dirigete al inicio de la ruta de patrulla', 12.0, 29)
     if not ok then
         return false
     end
@@ -195,28 +222,57 @@ MissionCore.RegisterRunner('police_suspect_interview', function()
         return false
     end
 
+    if Config.Debug then print('[qb-servicejobs] police_suspect_interview: suspect spawned=', tostring(suspect)) end
+    if not suspect or not DoesEntityExist(suspect) then
+        if Config.Debug then print('[qb-servicejobs] police_suspect_interview: suspect invalid, abort') end
+        return false
+    end
+
+    if Config.Debug then print('[qb-servicejobs] police_suspect_interview: interactWithPed') end
     ok = MissionCore.InteractWithPed(suspect, 'Pulsa ~INPUT_CONTEXT~ para comenzar entrevista', 2.0)
+    if Config.Debug then print('[qb-servicejobs] police_suspect_interview: interactWithPed done ok=', tostring(ok)) end
     if not ok then
         return false
     end
 
     MissionCore.AlignPlayerToEntity(suspect)
+    if Config.Debug then print('[qb-servicejobs] police_suspect_interview: doTimedAction statement') end
     ok = MissionCore.DoTimedAction('Tomando declaracion en libreta...', 7600, 'amb@world_human_clipboard@male@base', 'base', nil)
+    if Config.Debug then print('[qb-servicejobs] police_suspect_interview: doTimedAction done ok=', tostring(ok)) end
     if not ok then
         return false
     end
 
-    FreezeEntityPosition(suspect, false)
+    if Config.Debug then print('[qb-servicejobs] police_suspect_interview: unfreeze suspect and attempt follow') end
+    if DoesEntityExist(suspect) then
+        FreezeEntityPosition(suspect, false)
+        Wait(100)
+        local playerPed = PlayerPedId()
+        if playerPed and playerPed ~= 0 then
+            if DoesEntityExist(suspect) and DoesEntityExist(playerPed) then
+                TaskFollowToOffsetOfEntity(suspect, playerPed, 0.0, 1.0, 0.0, 1.1, -1, 2.0, true)
+            else
+                if Config.Debug then print('[qb-servicejobs] police_suspect_interview: cannot TaskFollow, entities missing') end
+            end
+        end
+    else
+        if Config.Debug then print('[qb-servicejobs] police_suspect_interview: suspect no longer exists before follow') end
+    end
+
     local escortPoint = vector3(145.47, -1044.59, 29.37)
-    TaskFollowToOffsetOfEntity(suspect, PlayerPedId(), 0.0, 1.0, 0.0, 1.1, -1, 2.0, true)
-
+    if Config.Debug then print('[qb-servicejobs] police_suspect_interview: go to escort point') end
     ok = MissionCore.GoToPoint(escortPoint, 'Acompana al sospechoso al punto de salida', 4.0, 38)
+    if Config.Debug then print('[qb-servicejobs] police_suspect_interview: go to escort point done ok=', tostring(ok)) end
     if not ok then
         return false
     end
 
-    ClearPedTasks(suspect)
-    TaskWanderStandard(suspect, 10.0, 10)
+    if DoesEntityExist(suspect) then
+        ClearPedTasks(suspect)
+        TaskWanderStandard(suspect, 10.0, 10)
+    else
+        if Config.Debug then print('[qb-servicejobs] police_suspect_interview: suspect missing before wander') end
+    end
 
     return true
 end)
@@ -244,8 +300,12 @@ MissionCore.RegisterRunner('police_evidence_recovery', function()
     local package = MissionCore.AttachPropToPlayer(
         `prop_cs_package_01`,
         60309,
-        vector3(0.05, 0.03, -0.02),
-        vector3(300.0, 250.0, 20.0)
+        vector3(0.02, 0.05, -0.13),
+        vector3(10.0, 285.0, 175.0),
+        {
+            carry = true,
+            disableCollision = true
+        }
     )
 
     if not package then

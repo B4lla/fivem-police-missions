@@ -365,13 +365,23 @@ RegisterNetEvent('qb-servicejobs:server:startMission', function(missionId, jobNa
     local leaderSource = source
     local lobby = PendingLobbies[leaderSource]
 
+    if Config.Debug then
+        print(('[qb-servicejobs] startMission requested by=%s missionId=%s jobName=%s lobby=%s'):format(tostring(leaderSource), tostring(missionId), tostring(jobName), tostring(lobby ~= nil)))
+    end
+
     if not lobby then
         TriggerClientEvent('QBCore:Notify', leaderSource, 'No tienes un lobby activo.', 'error')
+        if Config.Debug then
+            print(('[qb-servicejobs] startMission aborted: no lobby for leader=%s'):format(leaderSource))
+        end
         return
     end
 
     if lobby.missionId ~= missionId or lobby.jobName ~= jobName then
         TriggerClientEvent('QBCore:Notify', leaderSource, 'Lobby invalido para esta mision.', 'error')
+        if Config.Debug then
+            print(('[qb-servicejobs] startMission aborted: lobby mismatch leader=%s lobbyMission=%s lobbyJob=%s'):format(leaderSource, tostring(lobby.missionId), tostring(lobby.jobName)))
+        end
         return
     end
 
@@ -382,12 +392,18 @@ RegisterNetEvent('qb-servicejobs:server:startMission', function(missionId, jobNa
         else
             TriggerClientEvent('QBCore:Notify', leaderSource, 'No puedes iniciar esta mision.', 'error')
         end
+        if Config.Debug then
+            print(('[qb-servicejobs] startMission aborted: validate failed leader=%s reason=%s'):format(leaderSource, tostring(reason)))
+        end
         return
     end
 
     local mission = ServiceMissions.GetById(missionId)
     if not mission then
         TriggerClientEvent('QBCore:Notify', leaderSource, 'Mision invalida.', 'error')
+        if Config.Debug then
+            print(('[qb-servicejobs] startMission aborted: mission not found missionId=%s'):format(tostring(missionId)))
+        end
         return
     end
 
@@ -407,6 +423,9 @@ RegisterNetEvent('qb-servicejobs:server:startMission', function(missionId, jobNa
 
     if #finalMembers == 0 then
         TriggerClientEvent('QBCore:Notify', leaderSource, 'No hay miembros validos para iniciar.', 'error')
+        if Config.Debug then
+            print(('[qb-servicejobs] startMission aborted: no valid members for leader=%s'):format(leaderSource))
+        end
         return
     end
 
@@ -459,6 +478,9 @@ RegisterNetEvent('qb-servicejobs:server:startMission', function(missionId, jobNa
                 teamData,
                 memberSource == leaderSource
             )
+            if Config.Debug then
+                print(('[qb-servicejobs] sent startTeamMission to %s (leader=%s)'):format(tostring(memberSource), tostring(leaderSource)))
+            end
         end
     end
 

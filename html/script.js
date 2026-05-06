@@ -17,6 +17,8 @@ const inviteLeader = document.getElementById('inviteLeader');
 const inviteMission = document.getElementById('inviteMission');
 const inviteAccept = document.getElementById('inviteAccept');
 const inviteDecline = document.getElementById('inviteDecline');
+const missionTimerHud = document.getElementById('missionTimerHud');
+const missionTimerValue = document.getElementById('missionTimerValue');
 
 let writingTimer = null;
 let currentInviteId = null;
@@ -109,6 +111,27 @@ function renderNearby(nearby) {
     });
 }
 
+function formatSeconds(totalSeconds) {
+    const seconds = Math.max(0, Number(totalSeconds) || 0);
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function updateMissionTimer(payload) {
+    if (!missionTimerHud || !missionTimerValue) {
+        return;
+    }
+
+    if (!payload || payload.show !== true) {
+        missionTimerHud.classList.add('hidden');
+        return;
+    }
+
+    missionTimerValue.textContent = formatSeconds(payload.remaining);
+    missionTimerHud.classList.remove('hidden');
+}
+
 function openUi(payload) {
     app.classList.remove('hidden');
 
@@ -188,6 +211,11 @@ window.addEventListener('message', (event) => {
 
     if (data.action === 'close') {
         closeUi(false);
+        return;
+    }
+
+    if (data.action === 'missionTimer') {
+        updateMissionTimer(data.payload || {});
     }
 });
 
